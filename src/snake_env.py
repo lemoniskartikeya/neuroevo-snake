@@ -79,7 +79,7 @@ class SnakeEnv:
         choice picks one item from the list at random. We use self.rng, the game’s private dice from earlier, so a seed makes this repeatable."""
 
         free = [(x,y) for x in range(self.size)
-                for y in range(self.size) if (x,y) not in self.snake]
+                for y in range(self.size) if (x,y) not in self.snake]  # empty list return False
 
         if not free: # if free is false i.e has 0 elements
             self.done = True
