@@ -219,7 +219,7 @@ class SnakeEnv:
         # ---------- FOOD DIRECTION (4 numbers) ----------
         fx, fy = self.food if self.food else (hx, hy)
         # Unpack the food square. If there is no food (snake filled the board,
-        # food is None), use the head's own square so the line below does not crash.
+        # food is None), use the head's own square so the line above does not crash.
 
         food = [float(fy < hy), float(fy > hy), float(fx < hx), float(fx > hx)]
         # Four yes/no questions, in the same order as DIRS:
