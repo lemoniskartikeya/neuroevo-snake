@@ -119,39 +119,122 @@ class SnakeEnv:
         return out or p in self.snake  # either returns true if the block is outside the board or true if p is already inside the snakes body(self.snake)
                                        # in both cases its blocked and at a wrong postion
     
-    def step(self,action):
+    def step(self, action):
+    # action is a number: 0 up, 1 down, 2 left, 3 right.
+    # This method moves the snake exactly one square.
+
+    # ---------- PART 1: work out where the head will go ----------
         if action == OPPOSITE[self.heading]:
+            # OPPOSITE[self.heading] is the direction that would make a U-turn.
+            # If the player asks for that, the snake would fold into its own neck.
             action = self.heading
+            # So we ignore the request and keep going the way we were already going.
 
         self.heading = action
+        # Remember the direction we are now facing.
+        # Next turn we need it to catch U-turns.
+
         dx, dy = DIRS[action]
+        # Look up the move for this direction, e.g. up gives (0, -1).
+        # dx is how far to move across, dy is how far to move down.
 
         hx, hy = self.snake[0]
+        # snake[0] is the head (the list is head first).
+        # hx is the head's column, hy is the head's row.
 
-        new = (hx+dx, hy+dy)
+        new = (hx + dx, hy + dy)
+        # The square the head is about to enter.
+        # Nothing has moved yet, we have only calculated the destination.
 
-        self.steps +=1
-        self.idle +=1
+        self.steps += 1
+    # Count this move in the total number of moves.
+
+        self.idle += 1
+        # Count one more move without eating.
+        # If this gets too high, the snake is probably circling, so we stop it.
+
+        # ---------- PART 2: did the snake crash? ----------
 
         eating = new == self.food
-        body = self.snake if eating else self.snake[:-1]
-
+        # True if the square we are moving into holds the food.
 
         if self._blocked(new):
+            # Crash: hit a wall, or hit the snake's own body.
             self.done = True
+            # Mark the game as over.
             return
+            # Leave the method right now so the moving code below never runs.
+
+        # ---------- PART 3: actually move ----------
 
         self.snake.insert(0, new)
+        # Put the new head at the front of the list (position 0).
+        # The snake is now one square longer.
 
         if eating:
             self.score += 1
+            # One more food eaten.
+
             self.idle = 0
-            self._place_food
+            # Reset the wander counter, since we just ate.
+
+            self._place_food()
+            # Drop a new piece of food somewhere empty.
+            # We do NOT remove the tail here, so the snake stays longer (it grew).
         else:
             self.snake.pop()
+            # No food, so remove the last item (the tail).
+            # Added a head and removed a tail, so the snake slides forward
+            # without changing length.
 
         if self.idle >= self.max_idle:
+            # Too many moves without eating (default 100).
             self.done = True
+            # End the game so snakes that run in circles get a bad score.
+
+    def observe(self):
+    # Turns the board into 12 numbers (0.0 or 1.0) for the neural network.
+    # Layout: [4 danger] + [4 heading] + [4 food direction]
+
+        hx, hy = self.snake[0]
+        # Head position. hx is the column, hy is the row.
+        # Every input is measured relative to the head.
+
+        # ---------- DANGER (4 numbers) ----------
+        danger = [float(self._blocked((hx + dx, hy + dy))) for dx, dy in DIRS]
+        # For each direction (up, down, left, right, in DIRS order):
+        #   1. Compute the square next to the head: (hx + dx, hy + dy)
+        #   2. Ask _blocked: would stepping there crash? (True or False)
+        #   3. float() converts True to 1.0 and False to 0.0
+        # Example: [0.0, 1.0, 0.0, 0.0] means only "down" is dangerous.
+
+        # ---------- HEADING (4 numbers) ----------
+        heading = [float(i == self.heading) for i in range(4)]
+        # One-hot encoding: exactly one slot is 1.0, the rest are 0.0.
+        # i goes 0, 1, 2, 3. The slot matching our current direction becomes 1.0.
+        # Example: facing up gives [1.0, 0.0, 0.0, 0.0].
+        # We avoid feeding the raw number 0 to 3, because the network would
+        # treat "3" as bigger than "0", which means nothing for directions.
+
+        # ---------- FOOD DIRECTION (4 numbers) ----------
+        fx, fy = self.food if self.food else (hx, hy)
+        # Unpack the food square. If there is no food (snake filled the board,
+        # food is None), use the head's own square so the line below does not crash.
+
+        food = [float(fy < hy), float(fy > hy), float(fx < hx), float(fx > hx)]
+        # Four yes/no questions, in the same order as DIRS:
+        #   fy < hy : food row is smaller, so food is ABOVE  (up)
+        #   fy > hy : food is BELOW                          (down)
+        #   fx < hx : food column is smaller, so food is LEFT
+        #   fx > hx : food is to the RIGHT
+        # We use direction instead of exact coordinates so the same rule
+        # ("food is on my left, go left") works anywhere on the board.
+
+        return danger + heading + food
+        # Joins the three lists into one list of 12 numbers.
+        # This length (12) must match the first layer size of the MLP.
+
+
 
 env = SnakeEnv(seed=1)
 
@@ -168,3 +251,9 @@ print(env.snake)
 for _ in range(10):
     env.step(0)
 print(env.done)
+
+env = SnakeEnv(seed=1)
+env.food = (4, 4)             # force the food so we know the answer
+print(env.observe())
+# expected: [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+print(len(env.observe()))
