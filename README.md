@@ -76,7 +76,8 @@ neuroevo-snake/
 │   ├── snake_env.py      # game logic
 │   ├── mlp.py            # NumPy neural network
 │   ├── evolve.py         # evolution loop
-│   └── replay.py         # watch the best snake in the terminal
+│   ├──replay.py          # watch the best snake in the terminal
+|   └──show.py            # draw the game in the terminal
 ├── app/
 │   ├── main.py           # FastAPI app with WebSocket stream
 │   └── static/           # live dashboard (HTML and JS)
