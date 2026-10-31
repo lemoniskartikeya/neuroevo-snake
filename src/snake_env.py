@@ -59,7 +59,7 @@ class SnakeEnv:
 
         self._place_food()    # puts the first good on the board
  
-        return None # hands back what the snake can "see". important for MLP later
+        return self.observe() # hands back what the snake can "see". important for MLP later
 
 
     def _place_food(self):  # underscore in _place_food is a naming habit to tell that this method should be only used inside the class and not outside
